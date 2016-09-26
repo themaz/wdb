@@ -59,6 +59,8 @@ SOCKET_PORT = int(os.getenv('WDB_SOCKET_PORT', '19840'))
 WEB_SERVER = os.getenv('WDB_WEB_SERVER')
 # and port
 WEB_PORT = int(os.getenv('WDB_WEB_PORT', 0))
+# and path
+WEB_PATH = os.getenv('WDB_PATH', None)
 
 WDB_NO_BROWSER_AUTO_OPEN = bool(os.getenv('WDB_NO_BROWSER_AUTO_OPEN', False))
 log = logger('wdb')
@@ -123,7 +125,7 @@ class Wdb(object):
         self.extra_vars = {}
         self.last_obj = None
         self.reset()
-        self.uuid = force_uuid or str(uuid4())
+        self._uuid = force_uuid or str(uuid4())
         self.state = Running(None)
         self.full = False
         self.below = 0
@@ -136,6 +138,10 @@ class Wdb(object):
         self._socket = None
         self.connect()
         self.get_breakpoints()
+
+    @property
+    def uuid(self):
+        return WEB_PATH or self._uuid
 
     def run_file(self, filename):
         """Run the file `filename` with trace"""
