@@ -56,9 +56,9 @@ SOCKET_SERVER = os.getenv('WDB_SOCKET_SERVER', 'localhost')
 SOCKET_PORT = int(os.getenv('WDB_SOCKET_PORT', '19840'))
 
 # Get wdb web server host
-WEB_SERVER = os.getenv('WDB_WEB_SERVER')
+WEB_SERVER = os.getenv('WDB_WEB_SERVER', 'localhost')
 # and port
-WEB_PORT = int(os.getenv('WDB_WEB_PORT', 0))
+WEB_PORT = int(os.getenv('WDB_WEB_PORT', 1984))
 # and path
 WEB_PATH = os.getenv('WDB_PATH', None)
 
@@ -723,16 +723,11 @@ class Wdb(object):
 
     def open_browser(self, type_='debug'):
         if not self.connected:
-            log.debug('Launching browser and wait for connection')
-            web_url = 'http://%s:%d/%s/session/%s' % (
-                WEB_SERVER or 'localhost',
-                WEB_PORT or 1984,
+            server = '%s:%s' % (WEB_SERVER, WEB_PORT)
+            web_url = 'http://%s/%s/session/%s' % (
+                server,
                 type_,
                 self.uuid)
-
-            server = WEB_SERVER or '[wdb.server]'
-            if WEB_PORT:
-                server += ':%s' % WEB_PORT
 
             if WDB_NO_BROWSER_AUTO_OPEN:
                 log.warning('You can now launch your browser at '
