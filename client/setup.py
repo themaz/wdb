@@ -10,7 +10,7 @@ import re
 from setuptools import setup
 
 ROOT = os.path.dirname(__file__)
-with open(os.path.join(ROOT, 'wdb', '__init__.py')) as fd:
+with open(os.path.join(ROOT, 'wdb', '__init__.py'), encoding='latin1') as fd:
     __version__ = re.search("__version__ = '([^']+)'", fd.read()).group(1)
 
 requires = [
