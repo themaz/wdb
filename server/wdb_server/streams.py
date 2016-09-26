@@ -79,7 +79,7 @@ def assign_stream(stream, uuid):
 
 def read_uuid_size(stream, length):
     length, = unpack("!i", length)
-    assert length == 36, 'Wrong uuid'
+    # assert length == 36, 'Wrong uuid'
     try:
         stream.read_bytes(length, partial(assign_stream, stream))
     except StreamClosedError:
