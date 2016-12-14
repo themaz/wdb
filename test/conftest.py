@@ -32,7 +32,7 @@ class Slave(Process):
             os.path.dirname(__file__), 'scripts', use.file)
 
         if use.with_main:
-            self.argv = ['', self.file]
+            self.argv = ['', '--trace', self.file]
             self.file = os.path.join(
                 os.path.dirname(__file__), '..', 'client',
                 'wdb', '__main__.py')
@@ -222,6 +222,7 @@ class use(object):
 
 def timeout_handler(signum, frame):
     raise Exception('Timeout')
+
 
 signal.signal(signal.SIGALRM, timeout_handler)
 

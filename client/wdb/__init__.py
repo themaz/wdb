@@ -134,6 +134,7 @@ class Wdb(object):
         self.port = port or SOCKET_PORT
         self.interaction_stack = []
         self._importmagic_index = None
+        self._importmagic_index_lock = threading.RLock()
         self.index_imports()
         self._socket = None
         self.connect()
@@ -247,42 +248,61 @@ class Wdb(object):
         if not importmagic or self._importmagic_index:
             return
 
+        self._importmagic_index_lock.acquire()
+
         def index(self):
             log.info('Indexing imports')
-            self._importmagic_index = importmagic.SymbolIndex()
-            self._importmagic_index.build_index(sys.path)
+            index = importmagic.SymbolIndex()
+            index.build_index(sys.path)
+            self._importmagic_index = index
             log.info('Indexing imports done')
 
-        index_thread = Thread(target=index, args=(self,))
+        index_thread = Thread(
+            target=index, args=(self,), name='wdb_importmagic_build_index')
         # Don't wait for completion, let it die alone:
         index_thread.daemon = True
         index_thread.start()
 
+        self._importmagic_index_lock.release()
+
     def breakpoints_to_json(self):
         return [brk.to_dict() for brk in self.breakpoints]
+
+    def _get_under_code_ref(self):
+        code = getattr(self.under, '__code__', None)
+        if not code and hasattr(self.under, '__call__'):
+            # Allow for callable objects
+            code = getattr(self.under.__call__, '__code__', None)
+
+        return code
+
+    def _walk_frame_ancestry(self, frame):
+        iframe = frame
+        while iframe is not None:
+            yield iframe
+            iframe = iframe.f_back
 
     def check_below(self, frame):
         stop_frame = self.state.frame
 
-        if not self.below and not self.under:
+        if not any((self.below, self.under)):
             return frame == stop_frame, False
 
-        if self.under:
+        under_code = self._get_under_code_ref()
+        if under_code:
             stop_frame = None
-            iframe = frame
-            while iframe is not None:
-                if iframe.f_code == self.under.__code__:
+            for iframe in self._walk_frame_ancestry(frame):
+                if iframe.f_code == under_code:
                     stop_frame = iframe
-                iframe = iframe.f_back
-        iframe = frame
+
         if not stop_frame:
             return False, False
+
         below = 0
-        while iframe is not None:
+        for iframe in self._walk_frame_ancestry(frame):
             if stop_frame == iframe:
                 break
             below += 1
-            iframe = iframe.f_back
 
         return below == self.below, below == self.below
 
@@ -754,7 +774,7 @@ class Wdb(object):
             self, frame, tb=None,
             exception='Wdb', exception_description='Stepping',
             init=None, shell=False, shell_vars=None, source=None,
-            iframe_mode=False, timeout=None):
+            iframe_mode=False, timeout=None, post_mortem=False):
         """User interaction handling blocking on socket receive"""
         log.info('Interaction %r %r %r %r' % (
             frame, tb, exception, exception_description))
@@ -765,6 +785,8 @@ class Wdb(object):
             opts = {}
             if shell:
                 opts['type_'] = 'shell'
+            if post_mortem:
+                opts['type_'] = 'pm'
             self.open_browser(**opts)
 
         lvl = len(self.interaction_stack)
@@ -972,7 +994,7 @@ def post_mortem(t=None, server=None, port=None):
 
     wdb = Wdb.get(server=server, port=port)
     wdb.reset()
-    wdb.interaction(None, t)
+    wdb.interaction(None, t, post_mortem=True)
 
 
 def pm(server=None, port=None):
